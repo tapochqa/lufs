@@ -11,7 +11,7 @@
 
   :plugins [[lein-environ "1.1.0"]]
 
-  :main ^:skip-aot lufs-bot-clj.core
+  :main ^:skip-aot lufs-clj.core
   :target-path "target/%s"
 
   :profiles {:uberjar {:aot :all}})
