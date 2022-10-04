@@ -1,0 +1,8 @@
+[
+    {
+        "name" : "lufs_.core",
+        "allPublicConstructors": true,
+        "allPublicMethods": true,
+        "allDeclaredMethods": true
+    }
+]

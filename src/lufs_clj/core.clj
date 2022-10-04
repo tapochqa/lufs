@@ -1,23 +1,7 @@
 (ns lufs-clj.core
   (:require [pink.io.sound-file :as sf]
-            [diff-eq.core :refer [ring-read]]
             [clojure.math :as m])
   (:gen-class))
-
-(defn rms [a]
-  (let [a' (map #(* % %) a)]
-    (/ (reduce + a') (count a'))))
-(defn mean [a]
-    (/ (reduce + a) (count a)))
-
-(defn transgate [coll2 coll1]
-  ; transfer gated blocks coll2 -> coll1
-  (map
-    (fn [a b] 
-      (map
-        #(if (nil? %2) nil %1) a b)) 
-    coll1
-    [coll2 coll2]))
 
 (defn get-coeffs [f-type A w0 a fc rate G Q]
   ; shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
@@ -74,50 +58,106 @@
     { :b0 1.0                             :b1 -2.0                      :b2 1.0
       :a0 1.0                             :a1 (-> 2.0 (*(- K2 1.0)) f1) :a2 (-> 1.0 (- (/ K Q)) (+ K2) f1)}))))
 
+(defn biquad-tdI
+  [coll {:keys [a0 a1 a2 b0 b1 b2]}]
+  (loop  
+      [ c coll 
+        x-2 0.0 y-2 0.0 x-1 0.0 y-1 0.0
+        res []]
+      (if c
+        (let [x (first c)
+              y
+              (+
+                (* (/ b0 a0) x) 
+                (* (/ b1 a0) x-1)
+                (* (/ b2 a0) x-2)
+              (-(* (/ a1 a0) y-1))
+              (-(* (/ a2 a0) y-2)))]
+          (recur 
+            (next c) 
+            x-1 y-1 x y
+            (conj res y)))
+        res)))
+
 (defn apply-filter
   [ coll
     &
     { :keys [G Q fc rate f-type pb-gain] 
-      :or   {G 0 Q 0 fc 0 rate 44100 f-type :high-shelf pb-gain 0}}]
+      :or   {G 4.0 Q 0 fc 0 rate 44100 f-type :high-shelf pb-gain 0}}]
   (let [A (m/pow 10.0 (/ G 40.0))
         w0 (* m/PI (/ fc rate))
         a  (/ (m/sin w0) (* 2.0 Q))
-        coeffs (get-coeffs f-type A w0 a fc rate G Q)
-        ; macroexpanded from kunstmusic/diff-eq
-        biquad-tdI (let 
-                      [ x-1 (double-array 2) 
-                        y-1 (double-array 2) 
-                        x-2 (long-array 1) 
-                        y-2 (long-array 1)] 
-                      (fn [x {:keys [b0 b1 b2 a0 a1 a2]}] 
-                        (let [y (+  (* (/ b0 a0) x) 
-                                    (* (/ b1 a0) (ring-read x-1 (aget x-2 0) -1)) 
-                                    (* (/ b2 a0) (ring-read x-1 (aget x-2 0) -2)) 
-                                    (- (* (/ a1 a0) (ring-read y-1 (aget y-2 0) -1))) 
-                                    (- (* (/ a2 a0) (ring-read y-1 (aget y-2 0) -2))))] 
-                        (aset-double  x-1 (aget x-2 0) x) 
-                        (aset-double  y-1 (aget y-2 0) y) 
-                        (aset-long    x-2 0 (mod (inc (aget x-2 0)) 2)) 
-                        (aset-long    y-2 0 (mod (inc (aget y-2 0)) 2)) y)))]
-        (map #(biquad-tdI % coeffs) coll)))
+        coeffs (get-coeffs f-type A w0 a fc rate G Q)]
+        (biquad-tdI coll coeffs)))
 
+
+(defn kw-hs [rate] {:f-type :high-shelf 
+                    :G 4.0 
+                    :Q (/ 1 (m/sqrt 2.0)) 
+                    :fc 1500.0
+                    :rate rate})
+
+(defn kw-hp [rate] {:f-type :high-pass 
+                    :G 0.0 
+                    :Q 0.5
+                    :fc 38.0
+                    :rate rate})
+
+(defn transgate [coll2 coll1]
+  ; transfer gated blocks coll2 -> coll1
+  (map
+    (fn [a b] 
+      (map
+        #(if (nil? %2) nil %1) a b)) 
+    coll1
+    [coll2 coll2]))
+
+(defn lufs-filters [ch rate]
+  (-> ch  (apply-filter (kw-hs rate)) 
+          (apply-filter (kw-hp rate))))
+
+(defn rms [arr]
+  (loop [xs arr
+       result 0.0]
+  (if xs
+    (let [x (first xs)]
+      (recur (next xs) (+ result (* x x))))
+    (/ result (alength arr)))))
+
+(defn mean [a]
+    (/ (reduce + a) (count a)))
+
+(defn sliding-array
+  ([^long n ^long step]
+   (fn [rf]
+     (let [a (java.util.ArrayDeque. n)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (.add a input)
+          (if (= n (.size a))
+            (let [v (.toArray a)]
+              ;; Remove `step` elements instead of clear
+              (dotimes [_ step] (.removeFirst a))
+              (rf result v))
+            result)))))))
+
+(defn rms-blocks [ch block overlap]
+  (sequence (comp (sliding-array block overlap) (map rms)) ch))
+
+(defn energy [n]
+  (->> n m/log10 (* 10) (+ -0.691)))
+
+(defn tg-mean-e [a b]
+  (->>  (transgate a b) 
+        (map #(remove nil? %))
+        (map mean)
+        (reduce +)
+        energy))
 
 (defn lufs [table rate]
-  ; [[1 2 10 -3 -7 ...][1 3 4 -4 6 ...]]
-  (let [filtered (->> table
-                      (map #(apply-filter % 
-                        { :f-type :high-shelf 
-                          :G 4.0 
-                          :Q (/ 1 (m/sqrt 2.0)) 
-                          :fc 1500.0
-                          :rate rate}))
-                      (map #(apply-filter % 
-                        { :f-type :high-pass 
-                          :G 0.0 
-                          :Q 0.5
-                          :fc 38.0
-                          :rate rate})))
-        T_g 0.4 ; 400 ms block size
+  (let [T_g 0.4 ; 400 ms block size
         overlap 0.75 
         Gamma_a -70.0 ; initial abs threshold
         quiet? #(< % Gamma_a)
@@ -125,25 +165,16 @@
         block-size (int (* rate T_g))
         overlap-size (int (* block-size overlap))
 
-        ; slice on 400ms blocks with overlap and count RMS on every block
-        blocks (as-> filtered f
-                      (map #(partition block-size overlap-size %) f)
-                      (map #(map rms %) f)) 
-        ;d1 (println blocks)
-
-        energy #(->> % m/log10 (* 10) (+ -0.691))
-        tg-mean-e (fn [a b] (->> (transgate a b) 
-                                    (map #(remove nil? %))
-                                    (map mean)
-                                    (reduce +)
-                                    energy))
+        filtered (map #(lufs-filters % rate) table)
+        blocks (map #(rms-blocks % block-size overlap-size) filtered)
 
         ; count L+R energy on every block and nullize blocks below abs threshold
         J_g (as-> blocks t 
-                (zipmap (first t) (last t))
-                (map #(reduce + %) t)
-                (map #(-> % energy) t)
-                (map #(if (quiet? %) nil %) t))
+                (zipmap (nth t 0) (nth t 1))
+                (map #(as-> % ch 
+                              (reduce + ch) 
+                              (energy ch) 
+                              (if (quiet? ch) nil ch)) t))
 
         ; calculate 2nd relative threshiold
         Gamma_r (+ -10 (tg-mean-e J_g blocks))
@@ -156,11 +187,21 @@
                   blocks)]
   lufs))
 
+(defn -table [path] 
+  (let  [t (-> (sf/load-table path) last last first)]
+        [t t]))
+
+(defn -main [path rate]  (println (lufs (-table path) (Integer/parseInt rate))))
+
 (comment
+  
   (def t (-> (sf/load-table "resources/test.wav") last last first))
   (def t' [t t])
+  (def t'' (mapv #(lufs-filters % 44100) t'))
+  (def t''' (mapv #(rms-blocks % 17640 0.75) t''))
+  (zipmap (first t''') (last t'''))
   (lufs t' 44100))
-
+  (map rms (partition 2 1 [1.0 2.0 3.0 4.0 5.0]))
 
 
 
