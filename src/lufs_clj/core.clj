@@ -9,18 +9,17 @@
         cosw0 (m/cos w0)
         √A (m/sqrt A) √A2⍺ (* 2 √A a)
         A+1cosw0 (* A+1 cosw0) A-1cosw0 (* A-1 cosw0)
-        --+ (- A-1 A+1cosw0) +-+ (+ A-1 A+1cosw0) -++ (- A+1 A+1cosw0)
         f1 (+ A+1 A-1cosw0 (- √A2⍺))
         A* (fn [& args] (* A (reduce * args)))
         I-⍺ (- 1 a) A⍺ (* a A) -:⍺A (/ a A)]
   (case f-type
     :high-shelf 
-    { :b0 (A* (+ A+1 A-1cosw0 √A2⍺))      :b1 (A* +-+ -2)               :b2 (A* f1)
-      :a0 (+ A+1 (- A-1cosw0) √A2⍺)       :a1 (* 2 --+)                 :a2 (- A+1 A-1cosw0 √A2⍺)}
+    { :b0 (A* (+ A+1 A-1cosw0 √A2⍺))      :b1 (A* (+ A-1 A+1cosw0) -2)  :b2 (A* f1)
+      :a0 (+ A+1 (- A-1cosw0) √A2⍺)       :a1 (* 2 (- A-1 A+1cosw0))    :a2 (- A+1 A-1cosw0 √A2⍺)}
 
     :low-shelf
-    { :b0 (A* (+ A+1 (- A-1cosw0) √A2⍺))  :b1 (A* --+)                  :b2 (A* -++)
-      :a0 (+ A+1 A-1cosw0 √A2⍺)           :a1 (* +-+ (- 2) )            :a2 f1}
+    { :b0 (A* (+ A+1 (- A-1cosw0) √A2⍺))  :b1 (A* (- A-1 A+1cosw0))     :b2 (A* (- A+1 A+1cosw0))
+      :a0 (+ A+1 A-1cosw0 √A2⍺)           :a1 (* (+ A-1 A+1cosw0) -2)   :a2 f1}
     
     :high-pass 
     { :b0 (/ (inc cosw0) 2)               :b1 (- (inc cosw0))           :b2 (/ (inc cosw0) 2)
@@ -59,7 +58,15 @@
       :a0 1.0                             :a1 (-> 2.0 (*(- K2 1.0)) f1) :a2 (-> 1.0 (- (/ K Q)) (+ K2) f1)}))))
 
 (defn biquad-tdI
-  [coll {:keys [a0 a1 a2 b0 b1 b2]}]
+  ^doubles 
+  [^doubles coll 
+    {:keys 
+      [ ^double a0 
+        ^double a1 
+        ^double a2 
+        ^double b0 
+        ^double b1 
+        ^double b2]}]
   (loop  
       [ c coll 
         x-2 0.0 y-2 0.0 x-1 0.0 y-1 0.0
@@ -74,7 +81,7 @@
               (-(* (/ a1 a0) y-1))
               (-(* (/ a2 a0) y-2)))]
           (recur 
-            (next c) 
+            (next c)
             x-1 y-1 x y
             (conj res y)))
         res)))
@@ -122,7 +129,7 @@
   (if xs
     (let [x (first xs)]
       (recur (next xs) (+ result (* x x))))
-    (/ result (alength arr)))))
+    (/ result (count arr)))))
 
 (defn mean [a]
     (/ (reduce + a) (count a)))

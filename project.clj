@@ -14,4 +14,8 @@
   :main ^:skip-aot lufs-clj.core
   :target-path "target/%s"
 
-  :profiles {:uberjar {:aot :all}})
+  :profiles { :uberjar {
+                    :aot :all
+                    :global-vars {*unchecked-math* :true}}
+              :dev {
+                    :global-vars {*unchecked-math* :true}}})
