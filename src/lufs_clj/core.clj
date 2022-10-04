@@ -1,7 +1,77 @@
 (ns lufs-clj.core
-  (:require [pink.io.sound-file :as sf]
-            [clojure.math :as m])
+  (:require [clojure.math :as m])
+  (:import [java.io File ByteArrayOutputStream 
+            FileOutputStream BufferedOutputStream RandomAccessFile]
+           [java.nio ByteBuffer ByteOrder]
+           [javax.sound.sampled AudioFormat
+            AudioFormat$Encoding AudioInputStream AudioSystem]
+           )
   (:gen-class))
+
+
+(defn- locate-file
+  [f]
+  (cond 
+    (instance? File f) f
+    (string? f) (File. ^String f)))
+
+
+(defn convert-to-double-arrays
+  "Convert 16-bit, big endian audio samples to +-1.0 double samples"
+  [^ByteArrayOutputStream baos ^long channels]
+  (let [barray ^bytes (.toByteArray baos)
+        chan-length ^long (/ (alength barray) (* channels 2)) ; assumes 16-bit/2-byte per sample
+        bbuffer (ByteBuffer/wrap barray)
+        out (if (= channels 1) 
+              (double-array chan-length)
+              (into-array 
+                (for [_ (range channels)] (double-array chan-length))))]
+    (loop [i 0]
+      (if (< i ^:2 chan-length)
+        (do
+          (if (= channels 1) 
+              (aset ^doubles out i (double (/ (.getShort bbuffer) 32768.0)))
+              (loop [j 0]
+                (if 
+                  (< j channels)
+                  (let [ _ (aset ^doubles (aget ^"[[D" out j) i (double (/ (.getShort bbuffer) 32768.0)))]
+                    (recur (unchecked-inc j)))
+                  out)))
+          (recur (unchecked-inc i)))
+        out))))
+
+(defn load-table
+  "Load given file or filename as sampled audio.  Returns a map with meta-information as
+  well as audio split into discrete channels. Converts to doubles from source format. 
+  Currently only works with 16-bit PCM_SIGNED wave files."
+  [f]
+  (let [af ^File (locate-file f)
+        ain0 ^AudioInputStream (AudioSystem/getAudioInputStream af)
+        src-format ^AudioFormat (.getFormat ain0)
+        sr (.getSampleRate src-format)
+        ain ^AudioInputStream
+        (AudioSystem/getAudioInputStream
+          (AudioFormat. AudioFormat$Encoding/PCM_SIGNED
+                        (long sr) 
+                        16 
+                        (.getChannels src-format) 
+                        4 
+                        (long sr) 
+                        true)
+          ain0) 
+        channels (.getChannels src-format)
+        baos (ByteArrayOutputStream.)
+        buffer (byte-array 4096)]
+    (loop [cnt (.read ain buffer)]
+      (if (> cnt 0)
+        (do 
+          (.write baos buffer 0 cnt)
+          (recur (.read ain buffer)))
+        { :channels channels
+          :sample-rate (int sr)
+          :data (convert-to-double-arrays baos channels) 
+         }))))
+
 
 (defn get-coeffs [f-type A w0 a fc rate G Q]
   ; shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
@@ -163,7 +233,7 @@
         (reduce +)
         energy))
 
-(defn lufs [table rate]
+(defn lufs* [table rate]
   (let [T_g 0.4 ; 400 ms block size
         overlap 0.75 
         Gamma_a -70.0 ; initial abs threshold
@@ -184,40 +254,71 @@
                               (if (quiet? ch) nil ch)) t))
 
         ; calculate 2nd relative threshiold
+        
         Gamma_r (+ -10 (tg-mean-e J_g blocks))
+
+        zag (map #(if (> Gamma_r (or % 0)) nil %) J_g)
 
         ; nullize below 2nd theshold blocks on L+R energy coll
         ; then drop 'em from original coll and calculate mean on every channel
         ; then calculate energy of sum
-        lufs (tg-mean-e
-                  (map #(if (> Gamma_r %) nil %) J_g)
+        lufs 
+        (tg-mean-e
+                  zag
                   blocks)]
   lufs))
 
-(defn -table [path] 
-  (let  [t (-> (sf/load-table path) last last first)]
-        [t t]))
+(defn lufs [path]
+  (let [table (load-table path)
+        data (:data table)
+        rate (:sample-rate table)] 
+    (lufs* data (/ rate 2))))
 
-(defn -main [path rate]  (println (lufs (-table path) (Integer/parseInt rate))))
+(defn -main [path]
+  (lufs path))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (comment
   
-  (def t (-> (sf/load-table "resources/test.wav") last last first))
-  (def t' [t t])
-  (def t'' (mapv #(lufs-filters % 44100) t'))
-  (def t''' (mapv #(rms-blocks % 17640 0.75) t''))
-  (zipmap (first t''') (last t'''))
-  (lufs t' 44100))
-  (map rms (partition 2 1 [1.0 2.0 3.0 4.0 5.0]))
+  (def t (-> (load-table "resources/test-short.wav") last last first))
+
+  
+
+    #_(map #(reduce conj %))
+    #_(map #(reduce concat %))
+
+    (def t' [t t])
+    (def t'' (mapv #(lufs-filters % 44100) t'))
+    (def t''' (mapv #(rms-blocks % 17640 0.75) t''))
+    (zipmap (first t''') (last t'''))
+    (lufs (->> t second) 44100)
 
 
+    (map rms (partition 2 1 [1.0 2.0 3.0 4.0 5.0]))
 
+    (-main "resources/test-short.wav")
 
-
-
-
-
-
+    (lufs (->> aa first) 48000)
+    (-> aa first first)
+    )
 
 
 

@@ -14,4 +14,7 @@ build-native-macos:
 
 test-timing:
 	lein uberjar
-	gtime java -jar target/default+uberjar/lufs-clj-0.1.0-SNAPSHOT-standalone.jar resources/test-short.wav 44100
+	gtime java -jar target/default+uberjar/lufs-clj-0.1.0-SNAPSHOT-standalone.jar resources/test-short.wav
+
+test-timing-native:
+	gtime builds/lufs-clj-macos resources/test-short.wav
