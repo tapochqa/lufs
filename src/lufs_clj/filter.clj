@@ -71,7 +71,7 @@
   		b2' (/ b2 a0)
   		a1' (/ a1 a0)
   		a2' (/ a2 a0)]
-  (loop  
+  (loop
       [ c coll 
         x-2 0.0 y-2 0.0 x-1 0.0 y-1 0.0
         i 0]
@@ -82,8 +82,8 @@
                 (* b0' x)
                 (* b1' x-1)
                 (* b2' x-2)
-              (-(* a1' y-1))
-              (-(* a2' y-2)))]
+              	(* a1' y-1 -1)
+              	(* a2' y-2 -1))]
           (aset-double res i y)
           (recur 
             (next c)
@@ -92,6 +92,7 @@
         res))))
 
 (defn apply-filter
+	^doubles
   [ coll
     &
     { :keys [G Q fc rate f-type pb-gain] 
@@ -115,7 +116,7 @@
                     :fc 38.0
                     :rate rate})
 
-(defn lufs-filters [ch rate]
+(defn lufs-filters ^doubles [^doubles ch ^long rate]
   (-> ch  (apply-filter (kw-hs rate)) 
           (apply-filter (kw-hp rate))))
 
