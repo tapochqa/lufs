@@ -13,7 +13,7 @@
     (string? f) (File. ^String f)))
 
 
-(defn- convert-to-double-arrays
+(defn convert-to-double-arrays
   "Convert 16-bit, big endian audio samples to +-1.0 double samples"
   [^ByteArrayOutputStream baos ^long channels]
   (let [barray ^bytes (.toByteArray baos)
@@ -39,8 +39,7 @@
 
 (defn load-table
   "Load given file or filename as sampled audio.  Returns a map with meta-information as
-  well as audio split into discrete channels. Converts to doubles from source format. 
-  Currently only works with 16-bit PCM_SIGNED wave files."
+  well as audio split into discrete channels. Converts to doubles from source format."
   [f]
   (let [af ^File (locate-file f)
         ain0 ^AudioInputStream (AudioSystem/getAudioInputStream af)

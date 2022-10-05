@@ -1,8 +1,9 @@
 (ns lufs-clj.filter 
 	(:require [clojure.math :as m]))
 
-(defn get-coeffs [f-type A w0 a fc rate G Q]
-  ; shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
+(defn get-coeffs 
+  "shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html"
+  [f-type A w0 a fc rate G Q]
   (let [A+1 (inc A) A-1 (dec A)
         cosw0 (m/cos w0)
         √A (m/sqrt A) √A2⍺ (* 2 √A a)
@@ -56,21 +57,15 @@
       :a0 1.0                             :a1 (-> 2.0 (*(- K2 1.0)) f1) :a2 (-> 1.0 (- (/ K Q)) (+ K2) f1)}))))
 
 (defn biquad-tdI
+  "Filters the collection with coeffs."
   ^doubles 
   [^doubles coll 
     {:keys 
-      [ ^double a0 
-        ^double a1 
-        ^double a2 
-        ^double b0 
-        ^double b1 
-        ^double b2]}]
+      [ ^double a0 ^double a1 ^double a2 
+        ^double b0 ^double b1 ^double b2]}]
   (let [res (double-array (count coll))
-  		b0' (/ b0 a0)
-  		b1' (/ b1 a0)
-  		b2' (/ b2 a0)
-  		a1' (/ a1 a0)
-  		a2' (/ a2 a0)]
+  		b0' (/ b0 a0) b1' (/ b1 a0) b2' (/ b2 a0)
+  		              a1' (/ a1 a0) a2' (/ a2 a0)]
   (loop
       [ c coll 
         x-2 0.0 y-2 0.0 x-1 0.0 y-1 0.0
@@ -92,6 +87,7 @@
         res))))
 
 (defn apply-filter
+  "Applies biquad filter with provided params to collections."
 	^doubles
   [ coll
     &
@@ -104,30 +100,27 @@
         (biquad-tdI coll coeffs)))
 
 
-(defn kw-hs [rate] {:f-type :high-shelf 
-                    :G 4.0 
-                    :Q (/ 1 (m/sqrt 2.0)) 
-                    :fc 1500.0
-                    :rate rate})
+(defn kw-hs 
+  "K-weighted high-shelf filter params."
+  [rate] {:f-type :high-shelf 
+          :G 4.0 
+          :Q (/ 1 (m/sqrt 2.0)) 
+          :fc 1500.0
+          :rate rate})
 
-(defn kw-hp [rate] {:f-type :high-pass 
-                    :G 0.0 
-                    :Q 0.5
-                    :fc 38.0
-                    :rate rate})
+(defn kw-hp
+  "K-weighted high-pass filter params."
+  [rate] {:f-type :high-pass 
+          :G 0.0 
+          :Q 0.5
+          :fc 38.0
+          :rate rate})
 
-(defn lufs-filters ^doubles [^doubles ch ^long rate]
-  (-> ch  (apply-filter (kw-hs rate)) 
-          (apply-filter (kw-hp rate))))
-
-
-
-
-
-
-
-
-
+(defn lufs-filters
+  "K-weighted high-shelf, then K-weighted high-pass"
+  ^doubles [^doubles arr ^long rate]
+  (-> arr   (apply-filter (kw-hs rate)) 
+            (apply-filter (kw-hp rate))))
 
 
 

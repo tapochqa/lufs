@@ -1,5 +1,5 @@
-(defproject org.clojars.tapochqa/lufs "0.2.1"
-  :description "LUFS counter"
+(defproject org.clojars.tapochqa/lufs "0.3.0"
+  :description "LUFS meter"
 
   :url "https://github.com/tapochqa/lufs"
   :license {:name "Eclipse Public License"
