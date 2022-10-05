@@ -2,19 +2,21 @@ NI_ARGS = \
 	--initialize-at-build-time \
 	--report-unsupported-elements-at-runtime \
 	--no-fallback \
-	-jar target/default+uberjar/lufs-clj-0.1.0-SNAPSHOT-standalone.jar \
+	-jar target/default+uberjar/lufs-clj.jar \
 	-H:+PrintClassInitialization \
 	-H:ReflectionConfigurationFiles=reflection-config.json \
 	-H:+ReportExceptionStackTraces \
 	-H:Log=registerResource \
 	-H:Name=./builds/lufs-clj-
+FIXTURE = test/media/test.wav
 
 build-native-macos:
+	lein uberjar
 	sudo native-image ${NI_ARGS}macos
 
 test-timing:
 	lein uberjar
-	gtime java -jar target/default+uberjar/lufs-clj-0.1.0-SNAPSHOT-standalone.jar resources/test-short.wav
+	gtime java -jar target/default+uberjar/lufs-clj.jar ${FIXTURE}
 
 test-timing-native:
-	gtime builds/lufs-clj-macos resources/test-short.wav
+	gtime builds/lufs-clj-macos ${FIXTURE}
