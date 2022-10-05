@@ -1,8 +1,8 @@
 Integrated LUFS Meter in Clojure. Implements EBU R 128 standard.
 
-```clojure
-:dependencies [[org.clojars.tapochqa/lufs "0.2.1"]]
+[![Clojars Project](https://img.shields.io/clojars/v/org.clojars.tapochqa/lufs.svg)](https://clojars.org/org.clojars.tapochqa/lufs)
 
+```clojure
 (ns lufsomer.core
     (:require [lufs.core :refer [lufs lufs*]]))
 
