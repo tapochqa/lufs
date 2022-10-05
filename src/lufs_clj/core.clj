@@ -126,11 +126,11 @@
     (map rms (partition 2 1 [1.0 2.0 3.0 4.0 5.0]))
     (def nt (load-table "test/media/test-short.wav"))
     (lufs-filters (-> nt :data first) (:sample-rate nt))
-    (lufs "test/media/test.wav"))
+    (lufs "test/media/test-short.mp3")
 
     (lufs (->> aa first) 48000)
-    (-> aa first first)
-    )
+    (-> aa first first))
+    
 
 
 

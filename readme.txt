@@ -1,4 +1,4 @@
-Integrated LUFS Meter in Clojure.
+Integrated LUFS Meter in Clojure. Implements EBU R 128 standard.
 
 (lufs "audio.wav")
 => -18.860580104601013
