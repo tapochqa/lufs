@@ -1,10 +1,11 @@
-(defproject org.clojars.tapochqa/lufs "0.2.0"
+(defproject org.clojars.tapochqa/lufs "0.2.1"
   :description "LUFS counter"
 
   :url "https://github.com/tapochqa/lufs"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [ [org.clojure/clojure "1.11.0"]]
+  :dependencies [ [org.clojure/clojure "1.11.0"]
+                  [prismatic/hiphip "0.2.1"]]
   :main ^:skip-aot lufs-clj.core
   :target-path "target/%s"
   :uberjar-name "lufs-clj.jar"
