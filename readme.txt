@@ -9,7 +9,7 @@ USAGE
 :dependencies [[org.clojars.tapochqa/lufs "0.2.1"]]
 
 (ns lufsomer.core
-    (:require [lufs.core :refer [lufs]]))
+    (:require [lufs.core :refer [lufs lufs*]]))
 
 ; Measure LUFS from file or filename
 
