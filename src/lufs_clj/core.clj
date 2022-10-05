@@ -125,12 +125,21 @@
 
     (map rms (partition 2 1 [1.0 2.0 3.0 4.0 5.0]))
     (def nt (load-table "test/media/test-short.wav"))
+    (->> nt :data first (take 10))
+    (->> nt :data last (take 10))
+
     (lufs-filters (-> nt :data first) (:sample-rate nt))
     (lufs "test/media/test-short.wav")
+    
+    (defn gen-data [len rate]
+      (repeatedly (* len rate) #(-> (rand-int 2000) (- 1000) (/ 1000.0))))
+
+    (let [sr 44100 len 10]
+      (lufs* [(gen-data len sr) (gen-data len sr)] sr))
+    
+
 
     (lufs (->> aa first) 48000)
     (-> aa first first))
     
-
-
 
