@@ -59,37 +59,41 @@
 (defn biquad-tdI
   "Filters the collection with coeffs."
   ^doubles 
-  [^doubles coll 
+  [^doubles coll
+    len
     {:keys 
       [ ^double a0 ^double a1 ^double a2 
         ^double b0 ^double b1 ^double b2]}]
-  (let [res (double-array (count coll))
-  		b0' (/ b0 a0) b1' (/ b1 a0) b2' (/ b2 a0)
-  		              a1' (/ a1 a0) a2' (/ a2 a0)]
-  (loop
-      [ c coll 
-        x-2 0.0 y-2 0.0 x-1 0.0 y-1 0.0
-        i 0]
-      (if c
-        (let [x (first c)
-              y
-              (+
-                (* b0' x)
-                (* b1' x-1)
-                (* b2' x-2)
-              	(* a1' y-1 -1)
-              	(* a2' y-2 -1))]
-          (aset-double res i y)
-          (recur 
-            (next c)
-            x-1 y-1 x y
-            (unchecked-inc i)))
-        res))))
+  (let [res (double-array len)
+  		  b0' (/ b0 a0) b1' (/ b1 a0) b2' (/ b2 a0)
+  		                a1' (/ a1 a0) a2' (/ a2 a0)]
+    
+    (loop
+        [ c coll 
+          x-2 0.0 y-2 0.0 x-1 0.0 y-1 0.0
+          i 0]
+        (if c
+          (let [x (first c)
+                y
+                (+
+                  (* b0' x)
+                  (* b1' x-1)
+                  (* b2' x-2)
+                	(* a1' y-1 -1)
+                	(* a2' y-2 -1))]
+            (aset-double res i y)
+            (recur 
+              (next c)
+              x-1 y-1 x y
+              (unchecked-inc i)))
+          res))))
+
 
 (defn apply-filter
   "Applies biquad filter with provided params to collections."
 	^doubles
   [ coll
+    len
     &
     { :keys [G Q fc rate f-type pb-gain] 
       :or   {G 4.0 Q 0 fc 0 rate 44100 f-type :high-shelf pb-gain 0}}]
@@ -97,7 +101,9 @@
         w0 (* m/PI (/ fc rate))
         a  (/ (m/sin w0) (* 2.0 Q))
         coeffs (get-coeffs f-type A w0 a fc rate G Q)]
-        (biquad-tdI coll coeffs)))
+    (biquad-tdI coll len coeffs)
+    #_coeffs
+    ))
 
 
 (defn kw-hs 
@@ -118,9 +124,9 @@
 
 (defn lufs-filters
   "K-weighted high-shelf, then K-weighted high-pass"
-  ^doubles [^doubles arr ^long rate]
-  (-> arr   (apply-filter (kw-hs rate)) 
-            (apply-filter (kw-hp rate))))
+  ^doubles [^doubles arr ^long rate len]
+  (-> arr   (apply-filter ,,, len (kw-hs rate))
+            (apply-filter ,,, len (kw-hp rate))))
 
 
 

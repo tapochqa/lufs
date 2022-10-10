@@ -14,6 +14,9 @@ build-native-macos:
 	lein uberjar
 	sudo native-image ${NI_ARGS}macos
 
+timing:
+	gtime java -jar target/default+uberjar/lufs-clj.jar ${FIXTURE}
+
 test-timing:
 	lein uberjar
 	gtime java -jar target/default+uberjar/lufs-clj.jar ${FIXTURE}
