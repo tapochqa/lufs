@@ -1,0 +1,16 @@
+0.4.1 
+	* Slightly faster
+	* Loops on after-filter processing
+
+0.4.0 
+	* Multithreading
+	* And so faster
+
+0.3.0 
+	* Even faster
+
+0.2.0 
+	* Faster
+
+0.1.0 
+	* Slow
