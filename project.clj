@@ -1,4 +1,4 @@
-(defproject org.clojars.tapochqa/lufs "0.4.0"
+(defproject org.clojars.tapochqa/lufs "0.4.1"
   :description "LUFS meter"
 
   :url "https://github.com/tapochqa/lufs"
@@ -9,10 +9,10 @@
   :main ^:skip-aot lufs-clj.core
   :target-path "target/%s"
   :uberjar-name "lufs-clj.jar"
-  
+  :jvm-opts ^:replace []
   :profiles { :uberjar {
                     :aot :all
                     :global-vars {*unchecked-math* :true}}
               :dev {
-                    :jvm-opts ^:replace []
+                    
                     :global-vars {*unchecked-math* :true}}})

@@ -5,15 +5,9 @@
     [hiphip.double :as dbl])
   (:gen-class))
 
-(defn- transgate 
-  "Transfer gated blocks coll2 -> coll1."
-  [coll2 coll1]
-  (pmap
-    (fn [a b] 
-      (pmap
-        #(if (nil? %2) nil %1) a b)) 
-    coll1
-    [coll2 coll2]))
+
+
+
 
 (defn rms 
   "Root mean square of collection. 
@@ -47,25 +41,71 @@
 (defn- rms-blocks [ch block overlap]
   (sequence (comp (sliding-array block overlap) (map rms)) ch))
 
+
 (defn energy
   "Calculates energy of n. Works as intended if n is between 0 and 1" 
   [n]
   (->> n m/log10 (* 10) (+ -0.691)))
 
-(defn- tg-mean-e [a b]
-  (->>  (transgate a b)
-    (pmap #(remove nil? %))
-    (pmap double-array)
-    (pmap #(dbl/amean %))
-    (reduce +)
-    energy))
+
+(defn tg-mean-e
+  [^doubles ch1 ^doubles ch2 ^doubles gated len]
+  (let
+    [ res-1 (double-array len)
+      res-2 (double-array len)]
+    (loop [c1 ch1
+           c2 ch2
+           gtd gated
+           
+           i 0]
+      (if c1
+        (let [s1 (first c1)
+              s2 (first c2)
+              g (first gtd)]
+            
+          (when (some? g) (aset-double res-1 i s1) 
+                          (aset-double res-2 i s2))
+            
+          (recur 
+            (next c1) 
+            (next c2) 
+            (next gtd)
+            (unchecked-inc i)))
+      
+        (energy
+          (unchecked-add
+            (dbl/amean res-1)
+            (dbl/amean res-2)))))))
+
 
 (defn pmap-filters
-  [coll sr]
+  [coll sr l]
   (as-> coll d
         (sequence (comp (sliding-array 507150 507150)) d)
-        (doall (pmap #(lufs-filters % sr) d))
+        (doall (pmap #(lufs-filters % sr l) d))
         (apply concat d)))
+
+
+(defn quiet->nil 
+  [a]
+  (if (< a -70.0) nil a))
+
+
+(defn process-blocks
+  [^doubles ch1 ^doubles ch2] 
+    (loop [c1 ch1
+           c2 ch2
+           i 0
+           res []]
+      (if c1
+        (let [s1 (first c1)
+              s2 (first c2)]
+          (recur
+            (next c1) 
+            (next c2)
+            (unchecked-inc i)
+            (conj res (-> (+ s1 s2) energy quiet->nil))))
+        res)))
 
 
 (defn- lufs* [^doubles table ^long rate]
@@ -74,36 +114,49 @@
         Gamma_a -70.0 ; initial abs threshold
         quiet? #(< % Gamma_a)
         
+        len (count (first table))
+        
         block-size (int (* rate T_g))
         overlap-size (int (* block-size overlap))
         
-        len (count (first table))
-        
         filtered (pmap #(lufs-filters % rate len) table)
 
-        blocks (pmap #(rms-blocks % block-size overlap-size) filtered)
-
-        ; count L+R energy on every block and nullize blocks below abs threshold
-        J_g (as-> blocks t
-              (zipmap (nth t 0) (nth t 1))
-              (map #(as-> % ch 
-                      (reduce + ch) 
-                      (energy ch) 
-                      (if (quiet? ch) nil ch)) t))
-
+        blocks (map #(rms-blocks % block-size overlap-size) filtered)
+        
+        blocks-0 (nth blocks 0) 
+        blocks-1 (nth blocks 1)
+        
+        len-2 (count blocks-0)
+        
+        J_g (process-blocks 
+                      blocks-0 
+                      blocks-1)
+        
         ; calculate 2nd relative threshold
         
-        Gamma_r (+ -10 (tg-mean-e J_g blocks))
+        Gamma_r (+ 
+                  -10 
+                  (tg-mean-e 
+                    blocks-0
+                    blocks-1
+                    J_g
+                    len-2))
 
         zag (map #(if (> Gamma_r (or % 0)) nil %) J_g)
 
         ; nullize below 2nd theshold blocks on L+R energy coll
         ; then drop 'em from original coll and calculate mean on every channel
         ; then calculate energy of sum
+        
         lufs 
         (tg-mean-e
+          blocks-0
+          blocks-1
           zag
-          blocks)]
+          len-2)]
+  
+    
+    
     lufs))
 
 (defn lufs
@@ -126,10 +179,11 @@
 
 (comment
   
+  (lufs "test/media/test-short.wav")
+  
   (def t (-> (load-table "resources/test-short.wav") last last first))
 
   
-  (lufs "test/media/test-short.wav")
 
   #_(map #(reduce conj %))
   #_(map #(reduce concat %))
@@ -142,32 +196,25 @@
 
   
   (map rms (partition 2 1 [1.0 2.0 3.0 4.0 5.0]))
-  (def nt (load-table "test/media/test.wav"))
+  (def nt (load-table "test/media/test-short.wav"))
   (->> nt :data first (take 10))
   (->> nt :data last (take 10))
 
   
   (biquad-tdI (-> nt :data first) 
+    l
     { :b0 0.9999981679829839,
       :b1 -1.9999963359659678,
       :b2 0.9999981679829839,
       :a0 1.0027070379825762,
       :a1 -1.9999926719319356,
-      :a2 0.9972929620174238})
-  
-  (defn ppmap
-    "Partitioned pmap, for grouping map ops together to make parallel
-    overhead worthwhile"
-    [grain-size f & colls]
-    (apply concat
-     (apply pmap
-            (fn [& pgroups] (doall (apply map f pgroups)))
-            (map (partial partition-all grain-size) colls))))
+      :a2 0.9972929620174238}
+    )
   
   (def l (count (-> nt :data first)))
   
   
-  (lufs-filters (-> nt :data first) (:sample-rate nt))
+  (lufs-filters (-> nt :data first) (:sample-rate nt) l)
   (pmap-filters (-> nt :data first) (:sample-rate nt) l)
   (count (sequence (comp (sliding-array 507150 507150)) (-> nt :data first)))
 

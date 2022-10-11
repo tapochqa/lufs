@@ -10,8 +10,7 @@ Integrated LUFS Meter in Clojure. Implements EBU R 128 standard.
 
 ; Measure LUFS from file or filename
 
-(lufs "audio.wav")
-; => -18.860580104601013
+(lufs "audio.wav") ; -18.860580104601013
 
 
 
@@ -28,14 +27,12 @@ Integrated LUFS Meter in Clojure. Implements EBU R 128 standard.
 (let [sr 44100 len 10]
     (lufs* [(gen-data len sr)
       		(gen-data len sr)]
-      		sr))
-; => 1.4325250705544224
+      		sr)) ; 1.4325250705544224
 ```
 
 
 
-For now it's relatively slow and processes 1 min of 44.1k audio for about 1.5 sec. 
-Works only with 2-channel stereo WAV.
+For now it's relatively slow and works only with 2-channel stereo WAV.
 
 Algorithm is copied from [csteinmetz1/pyloudnorm](https://github.com/csteinmetz1/pyloudnorm). 
 
