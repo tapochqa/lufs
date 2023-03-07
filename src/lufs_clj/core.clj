@@ -6,9 +6,6 @@
   (:gen-class))
 
 
-
-
-
 (defn rms 
   "Root mean square of collection. 
   Written with loop to be not too slow."
@@ -70,6 +67,7 @@
             (next c1) 
             (next c2) 
             (next gtd)
+            
             (unchecked-inc i)))
       
         (energy
@@ -156,7 +154,7 @@
           len-2)]
   
     
-    
+    (shutdown-agents)
     lufs))
 
 (defn lufs
@@ -197,6 +195,8 @@
   
   (map rms (partition 2 1 [1.0 2.0 3.0 4.0 5.0]))
   (def nt (load-table "test/media/test-short.wav"))
+  
+  
   (->> nt :data first (take 10))
   (->> nt :data last (take 10))
 

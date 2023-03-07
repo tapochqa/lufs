@@ -1,3 +1,6 @@
+0.4.3
+	* Multithreading fix: now jar shuts down in a moment.
+
 0.4.1 
 	* Slightly faster
 	* Loops on after-filter processing
