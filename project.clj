@@ -1,4 +1,4 @@
-(defproject org.clojars.tapochqa/lufs "0.4.3"
+(defproject org.clojars.tapochqa/lufs "0.5.0"
   :description "LUFS meter"
 
   :url "https://github.com/tapochqa/lufs"
