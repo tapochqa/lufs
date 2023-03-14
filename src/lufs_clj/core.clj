@@ -70,11 +70,11 @@
             (next gtd)
             
             (unchecked-inc i)))
-      
-        (energy
-          (unchecked-add
-            (dbl/amean res-1)
-            (dbl/amean res-2)))))))
+        (do
+          (energy
+            (unchecked-add
+              (dbl/amean (double-array (remove #(= 0.0 %) res-1)))
+              (dbl/amean (double-array (remove #(= 0.0 %) res-2))))))))))
 
 
 (defn pmap-filters
@@ -131,17 +131,15 @@
                       blocks-0 
                       blocks-1)
         
-        
-        
         ; calculate 2nd relative threshold
         
-        Gamma_r (+ 
-                  -10 
+        Gamma_r (-
                   (tg-mean-e 
                     blocks-0
                     blocks-1
                     J_g
-                    len-2))
+                    len-2)
+                  10)
 
         zag (map #(if (> Gamma_r (or % 0)) nil %) J_g)
         
@@ -149,6 +147,7 @@
         ; nullize below 2nd theshold blocks on L+R energy coll
         ; then drop 'em from original coll and calculate mean on every channel
         ; then calculate energy of sum
+        
         
         lufs 
         (tg-mean-e
@@ -237,7 +236,6 @@
 
 
 (comment
-  
-  (lra "test/media/test-sad.wav"))
+  (integrated "test/media/test.wav"))
     
 

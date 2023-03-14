@@ -1,9 +1,32 @@
 (ns lufs-clj.file 
-   (:import [java.io File ByteArrayOutputStream 
-            FileOutputStream BufferedOutputStream RandomAccessFile]
-           [java.nio ByteBuffer ByteOrder]
-           [javax.sound.sampled AudioFormat
-            AudioFormat$Encoding AudioInputStream AudioSystem]))
+
+   (:import 
+     [java.io 
+      File 
+      ByteArrayOutputStream 
+      FileOutputStream 
+      BufferedOutputStream 
+      RandomAccessFile]
+     [java.nio 
+      ByteBuffer 
+      ByteOrder]
+     [javax.sound.sampled 
+      AudioFormat
+      AudioFormat$Encoding 
+      AudioInputStream 
+      AudioSystem 
+      Clip 
+      SourceDataLine 
+      TargetDataLine
+      BooleanControl
+      CompoundControl
+      EnumControl
+      FloatControl
+      Line
+      Line$Info
+      DataLine$Info
+      Mixer
+      Port]))
 
 
 (defn- locate-file
@@ -49,7 +72,7 @@
         (AudioSystem/getAudioInputStream
           (AudioFormat. AudioFormat$Encoding/PCM_SIGNED
                         (long sr) 
-                        16 
+                        16
                         (.getChannels src-format) 
                         4 
                         (long sr) 
@@ -58,12 +81,48 @@
         channels (.getChannels src-format)
         baos (ByteArrayOutputStream.)
         buffer (byte-array 4096)]
-    (loop [cnt (.read ain buffer)]
+    (loop [cnt (.read ain0 buffer)]
       (if (> cnt 0)
         (do 
           (.write baos buffer 0 cnt)
           (recur (.read ain buffer)))
         { :channels channels
           :sample-rate (int sr)
-          :data (convert-to-double-arrays baos channels) 
+          :data (convert-to-double-arrays baos channels)
          }))))
+
+
+
+
+
+
+
+(comment
+  
+  (def s "test/media/test.wav")
+  
+  (-> (load-table s)
+    :src-format
+    .getEncoding
+    .toString)
+  
+  
+  (do (load-table s))
+  
+  (-> (java.io.File. s)
+      (AudioSystem/getAudioInputStream))
+  
+  )
+
+
+
+
+
+
+
+
+
+
+
+
+
